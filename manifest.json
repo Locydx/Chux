@@ -1,0 +1,11 @@
+{
+  "name": "出行清单 Travel Checklist",
+  "short_name": "出行清单",
+  "description": "出行前携带物品与注意事项提醒小工具",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "orientation": "portrait",
+  "icons": []
+}
