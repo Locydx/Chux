@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0b1220">
+  <title>出行清单</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    :root {
+      --bg: #0b1220;
+      --surface: #141c2e;
+      --surface2: #1c2740;
+      --border: #2a3548;
+      --text: #e8eef7;
+      --muted: #8b9bb4;
+      --accent: #3b9eff;
+      --accent-soft: rgba(59,158,255,0.15);
+      --success: #3dd68c;
+      --radius: 10px;
+      --radius-sm: 7px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans SC", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      line-height: 1.35;
+      padding-bottom: 64px;
+    }
+
+    .page {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 0 12px;
+    }
+
+    /* Top bar - slim */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(11,18,32,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 0;
+    }
+
+    .topbar-inner {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .brand {
+      font-size: 1.05rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .progress-area { flex: 1; max-width: 220px; }
+
+    .progress-track {
+      height: 4px;
+      background: var(--surface2);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent), var(--success));
+      border-radius: 99px;
+      transition: width 0.3s ease;
+    }
+
+    .progress-label {
+      font-size: 0.68rem;
+      color: var(--muted);
+      margin-top: 2px;
+      text-align: right;
+    }
+
+    /* Weather - very compact */
+    .weather {
+      margin: 8px 0 10px;
+      background: linear-gradient(135deg, #152a4a 0%, #0f2038 100%);
+      border: 1px solid #243a5c;
+      border-radius: var(--radius);
+      padding: 8px 10px;
+    }
+
+    .weather-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .weather-row input {
+      flex: 1;
+      min-width: 0;
+      background: rgba(11,18,32,0.55);
+      border: 1px solid #2c4568;
+      border-radius: var(--radius-sm);
+      padding: 6px 10px;
+      color: var(--text);
+      font-size: 0.82rem;
+      outline: none;
+    }
+
+    .weather-row input:focus { border-color: var(--accent); }
+
+    .weather-row .btn-query {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .weather-row .btn-query:disabled { opacity: 0.5; }
+
+    .quick-cities {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 6px;
+    }
+
+    .quick-cities button {
+      background: rgba(11,18,32,0.4);
+      border: 1px solid #2c4568;
+      color: var(--muted);
+      border-radius: 99px;
+      padding: 2px 8px;
+      font-size: 0.68rem;
+      cursor: pointer;
+    }
+
+    .quick-cities button.on {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .w-status {
+      font-size: 0.72rem;
+      color: var(--muted);
+      text-align: center;
+      padding: 4px 0 0;
+    }
+
+    .w-status.err { color: #f87171; }
+
+    .w-body { display: none; margin-top: 6px; }
+    .w-body.show { display: block; }
+
+    /* Horizontal compact weather result */
+    .w-strip {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .w-current {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .w-icon { font-size: 1.5rem; line-height: 1; }
+
+    .w-temp {
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+
+    .w-temp small {
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: var(--muted);
+    }
+
+    .w-info {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .w-desc {
+      font-size: 0.75rem;
+      color: var(--accent);
+    }
+
+    .w-meta {
+      font-size: 0.68rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .w-loc {
+      font-size: 0.68rem;
+      color: var(--muted);
+      width: 100%;
+      margin-bottom: 2px;
+    }
+
+    .w-days {
+      display: flex;
+      gap: 4px;
+      flex: 1;
+      min-width: 0;
+      justify-content: flex-end;
+    }
+
+    .w-day {
+      text-align: center;
+      background: rgba(11,18,32,0.4);
+      border-radius: 6px;
+      padding: 4px 8px;
+      min-width: 56px;
+    }
+
+    .w-day .d-name { font-size: 0.62rem; color: var(--muted); }
+    .w-day .d-icon { font-size: 0.95rem; line-height: 1.2; }
+    .w-day .d-temp { font-size: 0.68rem; font-weight: 600; }
+    .w-day .d-temp span { color: var(--muted); font-weight: 400; }
+
+    /* On very small screens stack days */
+    @media (max-width: 400px) {
+      .w-days { width: 100%; justify-content: space-between; }
+      .w-day { flex: 1; min-width: 0; padding: 4px 2px; }
+    }
+
+    /* Checklist */
+    .sections {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    @media (min-width: 640px) {
+      .sections {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px 10px;
+      }
+    }
+
+    @media (min-width: 900px) {
+      .sections {
+        grid-template-columns: 1fr 1fr 1fr;
+      }
+    }
+
+    .section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 8px;
+    }
+
+    .section-hd {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 5px;
+      padding: 0 2px;
+    }
+
+    .section-hd h2 {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .section-hd .cnt {
+      font-size: 0.68rem;
+      color: var(--muted);
+    }
+
+    .items {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+    }
+
+    .item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface2);
+      border-radius: var(--radius-sm);
+      padding: 6px 8px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      min-height: 32px;
+    }
+
+    .item:active { border-color: var(--border); }
+
+    .item.on { opacity: 0.42; }
+
+    .item.on .label {
+      text-decoration: line-through;
+      color: var(--muted);
+    }
+
+    .check {
+      width: 15px;
+      height: 15px;
+      border: 1.5px solid var(--border);
+      border-radius: 4px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+
+    .item.on .check {
+      background: var(--success);
+      border-color: var(--success);
+    }
+
+    .check svg {
+      width: 9px;
+      height: 9px;
+      opacity: 0;
+      transform: scale(0.3);
+      transition: all 0.15s;
+    }
+
+    .item.on .check svg {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .label {
+      font-size: 0.8rem;
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .note {
+      font-size: 0.62rem;
+      color: var(--accent);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Tips - compact */
+    .tips {
+      background: linear-gradient(135deg, #12261a, #0e1f16);
+      border: 1px solid rgba(61,214,140,0.18);
+      border-radius: var(--radius);
+      padding: 8px 10px;
+      margin-bottom: 12px;
+    }
+
+    .tips h3 {
+      font-size: 0.78rem;
+      margin-bottom: 5px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .tips ul {
+      list-style: none;
+      font-size: 0.72rem;
+      color: var(--muted);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2px 10px;
+    }
+
+    @media (min-width: 640px) {
+      .tips ul { grid-template-columns: 1fr 1fr 1fr; }
+    }
+
+    .tips li {
+      padding-left: 14px;
+      position: relative;
+    }
+
+    .tips li::before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: var(--success);
+      font-weight: 700;
+      font-size: 0.68rem;
+    }
+
+    /* Bottom bar - slim */
+    .bottom {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(11,18,32,0.94);
+      backdrop-filter: blur(12px);
+      border-top: 1px solid var(--border);
+      padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+      z-index: 50;
+    }
+
+    .bottom-inner {
+      max-width: 1000px;
+      margin: 0 auto;
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 9px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn:active { transform: scale(0.98); }
+
+    .btn-ghost {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-main {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    /* Modal */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      z-index: 100;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .overlay.show { display: flex; }
+
+    @media (min-width: 520px) {
+      .overlay { align-items: center; }
+    }
+
+    .modal {
+      background: var(--surface);
+      border-radius: 14px 14px 0 0;
+      width: 100%;
+      max-width: 380px;
+      padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+      animation: up 0.22s ease;
+    }
+
+    @media (min-width: 520px) {
+      .modal { border-radius: 14px; padding-bottom: 16px; }
+    }
+
+    @keyframes up {
+      from { transform: translateY(30px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .modal h2 {
+      font-size: 1rem;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal .close {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 1.3rem;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .form { display: flex; flex-direction: column; gap: 8px; }
+
+    .form select,
+    .form input {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 9px 10px;
+      color: var(--text);
+      font-size: 0.9rem;
+      outline: none;
+    }
+
+    .form select:focus,
+    .form input:focus { border-color: var(--accent); }
+
+    .toast {
+      position: fixed;
+      top: 52px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-10px);
+      background: var(--surface2);
+      color: var(--text);
+      padding: 8px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 0.8rem;
+      z-index: 200;
+      opacity: 0;
+      transition: all 0.2s;
+      pointer-events: none;
+      border: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">🧳 出行清单</div>
+      <div class="progress-area">
+        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="progress-label" id="progressLabel">0 / 0 · 0%</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page">
+    <div class="weather">
+      <div class="weather-row">
+        <input type="text" id="cityInput" placeholder="城市，如 北京 / 东京" autocomplete="off">
+        <button class="btn-query" id="weatherBtn" onclick="fetchWeather()">查询</button>
+      </div>
+      <div class="quick-cities" id="quickCities">
+        <button data-city="北京">北京</button>
+        <button data-city="上海">上海</button>
+        <button data-city="广州">广州</button>
+        <button data-city="成都">成都</button>
+        <button data-city="杭州">杭州</button>
+        <button data-city="深圳">深圳</button>
+      </div>
+      <div class="w-status" id="wStatus">输入目的地查看天气</div>
+      <div class="w-body" id="wBody">
+        <div class="w-loc" id="wLoc"></div>
+        <div class="w-strip">
+          <div class="w-current">
+            <div class="w-icon" id="wIcon">🌤️</div>
+            <div class="w-info">
+              <div class="w-temp" id="wTemp">--<small>°C</small></div>
+              <div class="w-desc" id="wDesc">--</div>
+              <div class="w-meta" id="wMeta"></div>
+            </div>
+          </div>
+          <div class="w-days" id="wDays"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sections" id="sections"></div>
+
+    <div class="tips">
+      <h3>🚪 出门前必做</h3>
+      <ul>
+        <li>检查门窗水电</li>
+        <li>倒垃圾清易腐物</li>
+        <li>确认票站时间</li>
+        <li>关空调热水器</li>
+        <li>带好钥匙锁门</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <div class="bottom-inner">
+      <button class="btn btn-ghost" onclick="resetAll()">重置</button>
+      <button class="btn btn-main" onclick="showAdd()">＋ 添加</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay">
+    <div class="modal">
+      <h2>添加物品 <button class="close" onclick="hideAdd()">×</button></h2>
+      <div class="form">
+        <select id="addCat">
+          <option value="docs">证件类</option>
+          <option value="toiletries">洗漱类</option>
+          <option value="electronics">电器类</option>
+          <option value="medicine">药物类</option>
+          <option value="others">其他</option>
+          <option value="clothing">衣物类</option>
+        </select>
+        <input type="text" id="addName" placeholder="物品名称" maxlength="30">
+        <button class="btn btn-main" onclick="addItem()">添加</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const weatherMap = {
+      0:{icon:"☀️",text:"晴朗"},1:{icon:"🌤️",text:"大部晴朗"},2:{icon:"⛅",text:"多云"},3:{icon:"☁️",text:"阴天"},
+      45:{icon:"🌫️",text:"有雾"},48:{icon:"🌫️",text:"雾凇"},
+      51:{icon:"🌧️",text:"小毛毛雨"},53:{icon:"🌧️",text:"毛毛雨"},55:{icon:"🌧️",text:"大毛毛雨"},
+      61:{icon:"🌧️",text:"小雨"},63:{icon:"🌧️",text:"中雨"},65:{icon:"🌧️",text:"大雨"},
+      71:{icon:"🌨️",text:"小雪"},73:{icon:"🌨️",text:"中雪"},75:{icon:"🌨️",text:"大雪"},
+      80:{icon:"🌦️",text:"小阵雨"},81:{icon:"🌦️",text:"阵雨"},82:{icon:"🌦️",text:"强阵雨"},
+      95:{icon:"⛈️",text:"雷暴"},96:{icon:"⛈️",text:"雷暴伴冰雹"},99:{icon:"⛈️",text:"强雷暴伴冰雹"}
+    };
+    const getW = c => weatherMap[c] || {icon:"🌡️",text:"未知"};
+
+    async function fetchWeather(name) {
+      const input = document.getElementById("cityInput");
+      const city = (name || input.value).trim();
+      if (!city) return toast("请输入城市");
+      input.value = city;
+
+      const btn = document.getElementById("weatherBtn");
+      const st = document.getElementById("wStatus");
+      const body = document.getElementById("wBody");
+
+      btn.disabled = true;
+      st.className = "w-status";
+      st.textContent = "获取中…";
+      st.style.display = "block";
+      body.classList.remove("show");
+
+      document.querySelectorAll(".quick-cities button").forEach(b => {
+        b.classList.toggle("on", b.dataset.city === city);
+      });
+
+      try {
+        const geo = await (await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=zh&format=json`)).json();
+        if (!geo.results?.length) throw new Error(`未找到「${city}」`);
+        const p = geo.results[0];
+        const loc = [p.name, p.admin1, p.country].filter(Boolean).join(" · ");
+
+        const w = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${p.latitude}&longitude=${p.longitude}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,apparent_temperature&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=3`)).json();
+
+        const cur = w.current;
+        const info = getW(cur.weather_code);
+        document.getElementById("wLoc").textContent = loc;
+        document.getElementById("wIcon").textContent = info.icon;
+        document.getElementById("wTemp").innerHTML = `${Math.round(cur.temperature_2m)}<small>°C</small>`;
+        document.getElementById("wDesc").textContent = info.text;
+        document.getElementById("wMeta").textContent =
+          `体感${Math.round(cur.apparent_temperature)}°  湿度${cur.relative_humidity_2m}%  风速${Math.round(cur.wind_speed_10m)}km/h`;
+
+        const days = ["今天","明天","后天"];
+        let html = "";
+        for (let i = 0; i < 3; i++) {
+          const d = getW(w.daily.weather_code[i]);
+          html += `<div class="w-day">
+            <div class="d-name">${days[i]}</div>
+            <div class="d-icon">${d.icon}</div>
+            <div class="d-temp">${Math.round(w.daily.temperature_2m_max[i])}°<span>/${Math.round(w.daily.temperature_2m_min[i])}°</span></div>
+          </div>`;
+        }
+        document.getElementById("wDays").innerHTML = html;
+        body.classList.add("show");
+        st.style.display = "none";
+        localStorage.setItem("lastCity", city);
+      } catch (e) {
+        st.className = "w-status err";
+        st.textContent = e.message || "获取失败";
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    const defaultData = {
+      docs: { name: "证件类", icon: "🪪", items: [
+        {id:"idcard",name:"身份证",checked:false},{id:"pass",name:"通行证",checked:false},
+        {id:"passport",name:"护照",checked:false},{id:"driver",name:"驾驶证",checked:false}
+      ]},
+      toiletries: { name: "洗漱类", icon: "🧴", items: [
+        {id:"toiletries",name:"洗漱用品",checked:false},{id:"sunscreen",name:"防晒",checked:false},
+        {id:"hairgel",name:"发胶",checked:false},{id:"facewash",name:"洗面奶",checked:false}
+      ]},
+      electronics: { name: "电器类", icon: "🔌", items: [
+        {id:"charger",name:"充电器",checked:false},{id:"powerbank",name:"充电宝",checked:false},
+        {id:"earphone",name:"耳机",checked:false},{id:"razor",name:"剃须刀",checked:false},
+        {id:"watch",name:"手表",checked:false},{id:"camera",name:"相机",checked:false}
+      ]},
+      medicine: { name: "药物类", icon: "💊", items: [
+        {id:"cold",name:"感冒药",checked:false},{id:"stomach",name:"肠胃药",checked:false},
+        {id:"detox",name:"清热解毒",checked:false},{id:"altitude",name:"高反药",checked:false}
+      ]},
+      others: { name: "其他", icon: "🎒", items: [
+        {id:"mask",name:"口罩",checked:false},{id:"umbrella",name:"雨伞",checked:false},
+        {id:"sunglasses",name:"墨镜",checked:false},{id:"eyemask",name:"眼罩",checked:false},
+        {id:"pillow",name:"靠枕",checked:false},{id:"tissue",name:"纸巾",checked:false},
+        {id:"keys",name:"钥匙",checked:false}
+      ]},
+      clothing: { name: "衣物类", icon: "👕", items: [
+        {id:"weathercheck",name:"根据天气准备衣物",checked:false,note:"先看天气"},
+        {id:"clothes",name:"换洗衣物",checked:false},{id:"underwear",name:"内衣内裤",checked:false},
+        {id:"shoes",name:"舒适鞋子",checked:false}
+      ]}
+    };
+
+    let data = JSON.parse(JSON.stringify(defaultData));
+
+    function load() {
+      try {
+        const s = localStorage.getItem("travelChecklist");
+        if (s) {
+          const p = JSON.parse(s);
+          for (const k in defaultData) if (p[k]) data[k] = p[k];
+        }
+      } catch {}
+    }
+
+    function save() {
+      localStorage.setItem("travelChecklist", JSON.stringify(data));
+    }
+
+    function updateProgress() {
+      let t = 0, c = 0;
+      for (const k in data) data[k].items.forEach(i => { t++; if (i.checked) c++; });
+      const pct = t ? Math.round(c / t * 100) : 0;
+      document.getElementById("progressFill").style.width = pct + "%";
+      document.getElementById("progressLabel").textContent = `${c} / ${t} · ${pct}%`;
+    }
+
+    function render() {
+      const box = document.getElementById("sections");
+      box.innerHTML = "";
+      for (const key in data) {
+        const cat = data[key];
+        const done = cat.items.filter(i => i.checked).length;
+        const sec = document.createElement("div");
+        sec.className = "section";
+        sec.innerHTML = `
+          <div class="section-hd">
+            <h2>${cat.icon} ${cat.name}</h2>
+            <span class="cnt">${done}/${cat.items.length}</span>
+          </div>
+          <div class="items">
+            ${cat.items.map(it => `
+              <div class="item ${it.checked ? "on" : ""}" onclick="toggle('${key}','${it.id}')">
+                <div class="check">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <div style="min-width:0">
+                  <div class="label">${it.name}</div>
+                  ${it.note ? `<div class="note">${it.note}</div>` : ""}
+                </div>
+              </div>
+            `).join("")}
+          </div>`;
+        box.appendChild(sec);
+      }
+      updateProgress();
+    }
+
+    function toggle(cat, id) {
+      const it = data[cat].items.find(i => i.id === id);
+      if (it) { it.checked = !it.checked; save(); render(); }
+    }
+
+    function resetAll() {
+      if (!confirm("确定重置全部勾选？")) return;
+      for (const k in data) data[k].items.forEach(i => i.checked = false);
+      save(); render(); toast("已重置");
+    }
+
+    function showAdd() {
+      document.getElementById("overlay").classList.add("show");
+      document.getElementById("addName").value = "";
+      setTimeout(() => document.getElementById("addName").focus(), 50);
+    }
+
+    function hideAdd() {
+      document.getElementById("overlay").classList.remove("show");
+    }
+
+    function addItem() {
+      const cat = document.getElementById("addCat").value;
+      const name = document.getElementById("addName").value.trim();
+      if (!name) return toast("请输入名称");
+      data[cat].items.push({ id: "c" + Date.now(), name, checked: false });
+      save(); render(); hideAdd(); toast("已添加：" + name);
+    }
+
+    function toast(msg) {
+      const t = document.getElementById("toast");
+      t.textContent = msg;
+      t.classList.add("show");
+      setTimeout(() => t.classList.remove("show"), 1500);
+    }
+
+    load();
+    render();
+
+    document.getElementById("quickCities").addEventListener("click", e => {
+      if (e.target.dataset.city) fetchWeather(e.target.dataset.city);
+    });
+
+    const last = localStorage.getItem("lastCity");
+    if (last) {
+      document.getElementById("cityInput").value = last;
+      fetchWeather(last);
+    }
+
+    document.getElementById("cityInput").addEventListener("keydown", e => {
+      if (e.key === "Enter") fetchWeather();
+    });
+
+    document.getElementById("overlay").addEventListener("click", e => {
+      if (e.target.id === "overlay") hideAdd();
+    });
+    document.getElementById("addName").addEventListener("keydown", e => {
+      if (e.key === "Enter") addItem();
+    });
+  </script>
+</body>
+</html>
