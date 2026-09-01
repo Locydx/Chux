@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-09-01T09:54:30.666Z",
+  "updatedAt": "2026-09-01T09:54:33.266Z",
   "checklist": {
     "docs": {
       "name": "证件类",
@@ -66,7 +66,7 @@
         {
           "id": "powerbank",
           "name": "充电宝",
-          "checked": false
+          "checked": true
         },
         {
           "id": "earphone",
