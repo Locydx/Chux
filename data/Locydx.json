@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-09-01T09:54:19.309Z",
+  "updatedAt": "2026-09-01T09:54:30.666Z",
   "checklist": {
     "docs": {
       "name": "证件类",
@@ -14,7 +14,7 @@
         {
           "id": "pass",
           "name": "通行证",
-          "checked": false
+          "checked": true
         },
         {
           "id": "passport",
@@ -128,12 +128,12 @@
         {
           "id": "umbrella",
           "name": "雨伞",
-          "checked": false
+          "checked": true
         },
         {
           "id": "sunglasses",
           "name": "墨镜",
-          "checked": false
+          "checked": true
         },
         {
           "id": "eyemask",
@@ -175,7 +175,7 @@
         {
           "id": "underwear",
           "name": "内衣内裤",
-          "checked": false
+          "checked": true
         },
         {
           "id": "shoes",
