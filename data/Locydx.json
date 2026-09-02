@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-09-02T02:03:39.062Z",
+  "updatedAt": "2026-09-02T02:03:41.643Z",
   "checklist": {
     "docs": {
       "name": "证件类",
@@ -133,7 +133,7 @@
         {
           "id": "sunglasses",
           "name": "墨镜",
-          "checked": false
+          "checked": true
         },
         {
           "id": "eyemask",
