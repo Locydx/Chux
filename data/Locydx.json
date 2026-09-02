@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-09-02T02:03:41.643Z",
+  "updatedAt": "2026-09-02T02:03:42.682Z",
   "checklist": {
     "docs": {
       "name": "证件类",
@@ -170,7 +170,7 @@
         {
           "id": "clothes",
           "name": "换洗衣物",
-          "checked": false
+          "checked": true
         },
         {
           "id": "underwear",
