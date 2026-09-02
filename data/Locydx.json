@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-09-02T02:03:44.016Z",
+  "updatedAt": "2026-09-02T02:04:35.082Z",
   "checklist": {
     "docs": {
       "name": "证件类",
@@ -35,7 +35,7 @@
         {
           "id": "toiletries",
           "name": "洗漱用品",
-          "checked": false
+          "checked": true
         },
         {
           "id": "sunscreen",
@@ -185,6 +185,6 @@
       ]
     }
   },
-  "lastCity": "",
+  "lastCity": "深圳",
   "nick": "Locydx"
 }
