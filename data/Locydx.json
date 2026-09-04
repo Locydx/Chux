@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-09-04T03:39:20.748Z",
+  "updatedAt": "2026-09-04T03:47:44.882Z",
   "checklist": {
     "docs": {
       "name": "证件类",
@@ -188,6 +188,11 @@
           "checked": false
         }
       ]
+    },
+    "custom_mtmey32w": {
+      "name": "零食",
+      "icon": "📦",
+      "items": []
     }
   },
   "lastCity": "深圳",
