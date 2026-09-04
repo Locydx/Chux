@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-09-02T02:04:35.082Z",
+  "updatedAt": "2026-09-04T03:39:20.748Z",
   "checklist": {
     "docs": {
       "name": "证件类",
@@ -24,6 +24,11 @@
         {
           "id": "driver",
           "name": "驾驶证",
+          "checked": false
+        },
+        {
+          "id": "c1788493154527",
+          "name": "外币",
           "checked": false
         }
       ]
