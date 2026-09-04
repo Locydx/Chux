@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-09-04T03:47:56.050Z",
+  "updatedAt": "2026-09-04T03:47:58.914Z",
   "checklist": {
     "docs": {
       "name": "证件类",
@@ -185,17 +185,6 @@
         {
           "id": "shoes",
           "name": "舒适鞋子",
-          "checked": false
-        }
-      ]
-    },
-    "custom_mtmey32w": {
-      "name": "零食",
-      "icon": "📦",
-      "items": [
-        {
-          "id": "c1788493667520",
-          "name": "外币",
           "checked": false
         }
       ]
