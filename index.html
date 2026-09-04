@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0b1220">
+  <title>Chux 出行清单</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    :root {
+      --bg: #0b1220;
+      --surface: #141c2e;
+      --surface2: #1c2740;
+      --border: #2a3548;
+      --text: #e8eef7;
+      --muted: #8b9bb4;
+      --accent: #3b9eff;
+      --accent-soft: rgba(59,158,255,0.15);
+      --success: #3dd68c;
+      --radius: 10px;
+      --radius-sm: 7px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans SC", sans-serif;
+      background: var(--bg); color: var(--text); min-height: 100dvh; line-height: 1.35; padding-bottom: 64px;
+    }
+    .page { max-width: 1000px; margin: 0 auto; padding: 0 12px; }
+
+    .topbar {
+      position: sticky; top: 0; z-index: 50;
+      background: rgba(11,18,32,0.92); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border); padding: 8px 0;
+    }
+    .topbar-inner {
+      max-width: 1000px; margin: 0 auto; padding: 0 12px;
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    }
+    .brand { font-size: 1.05rem; font-weight: 700; white-space: nowrap; }
+    .progress-area { flex: 1; max-width: 200px; }
+    .progress-track { height: 4px; background: var(--surface2); border-radius: 99px; overflow: hidden; }
+    .progress-fill {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, var(--accent), var(--success));
+      border-radius: 99px; transition: width 0.3s ease;
+    }
+    .progress-label { font-size: 0.68rem; color: var(--muted); margin-top: 2px; text-align: right; }
+    .sync-dot {
+      width: 8px; height: 8px; border-radius: 50%; background: var(--muted);
+      flex-shrink: 0;
+    }
+    .sync-dot.on { background: var(--success); box-shadow: 0 0 6px var(--success); }
+
+    /* Weather compact */
+    .weather {
+      margin: 8px 0 10px;
+      background: linear-gradient(135deg, #152a4a 0%, #0f2038 100%);
+      border: 1px solid #243a5c; border-radius: var(--radius); padding: 8px 10px;
+    }
+    .weather-row { display: flex; gap: 6px; align-items: center; }
+    .weather-row input {
+      flex: 1; min-width: 0; background: rgba(11,18,32,0.55);
+      border: 1px solid #2c4568; border-radius: var(--radius-sm);
+      padding: 6px 10px; color: var(--text); font-size: 0.82rem; outline: none;
+    }
+    .weather-row input:focus { border-color: var(--accent); }
+    .weather-row .btn-query {
+      background: var(--accent); color: #fff; border: none; border-radius: var(--radius-sm);
+      padding: 6px 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+    }
+    .weather-row .btn-query:disabled { opacity: 0.5; }
+    .quick-cities { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; align-items: center; }
+    .quick-cities button {
+      background: rgba(11,18,32,0.4); border: 1px solid #2c4568; color: var(--muted);
+      border-radius: 99px; padding: 2px 8px; font-size: 0.68rem; cursor: pointer;
+    }
+    .quick-cities button.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+    .quick-cities button.add-city {
+      border-style: dashed; color: var(--accent); min-width: 28px;
+    }
+    .quick-cities button.city-x {
+      padding: 0 4px; margin-left: -2px; opacity: 0.55; font-size: 0.62rem;
+      border: none; background: transparent; color: var(--muted);
+    }
+    .w-status { font-size: 0.72rem; color: var(--muted); text-align: center; padding: 4px 0 0; }
+    .w-status.err { color: #f87171; }
+    .w-body { display: none; margin-top: 6px; }
+    .w-body.show { display: block; }
+    .w-strip { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .w-current { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .w-icon { font-size: 1.5rem; line-height: 1; }
+    .w-temp { font-size: 1.25rem; font-weight: 700; }
+    .w-temp small { font-size: 0.72rem; font-weight: 500; color: var(--muted); }
+    .w-info { display: flex; flex-direction: column; gap: 1px; }
+    .w-desc { font-size: 0.75rem; color: var(--accent); }
+    .w-meta { font-size: 0.68rem; color: var(--muted); white-space: nowrap; }
+    .w-loc { font-size: 0.68rem; color: var(--muted); width: 100%; margin-bottom: 2px; }
+    .w-days { display: flex; gap: 4px; flex: 1; min-width: 0; justify-content: flex-end; }
+    .w-day { text-align: center; background: rgba(11,18,32,0.4); border-radius: 6px; padding: 4px 8px; min-width: 56px; }
+    .w-day .d-name { font-size: 0.62rem; color: var(--muted); }
+    .w-day .d-icon { font-size: 0.95rem; line-height: 1.2; }
+    .w-day .d-temp { font-size: 0.68rem; font-weight: 600; }
+    .w-day .d-temp span { color: var(--muted); font-weight: 400; }
+    @media (max-width: 400px) {
+      .w-days { width: 100%; justify-content: space-between; }
+      .w-day { flex: 1; min-width: 0; padding: 4px 2px; }
+    }
+
+    /* Checklist */
+    .sections { display: grid; gap: 8px; margin-bottom: 10px; }
+    @media (min-width: 640px) { .sections { grid-template-columns: 1fr 1fr; gap: 8px 10px; } }
+    @media (min-width: 900px) { .sections { grid-template-columns: 1fr 1fr 1fr; } }
+    .section {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 8px;
+    }
+    .section-hd {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 5px; padding: 0 2px;
+    }
+    .section-hd h2 {
+      font-size: 0.8rem; font-weight: 600; color: var(--accent);
+      display: flex; align-items: center; gap: 4px;
+    }
+    .section-hd .cnt { font-size: 0.68rem; color: var(--muted); }
+    .items { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+    .item {
+      display: flex; align-items: center; gap: 6px;
+      background: var(--surface2); border-radius: var(--radius-sm);
+      padding: 6px 8px; cursor: pointer; border: 1px solid transparent; min-height: 32px;
+    }
+    .item:active { border-color: var(--border); }
+    .item.on { opacity: 0.42; }
+    .item.on .label { text-decoration: line-through; color: var(--muted); }
+    .check {
+      width: 15px; height: 15px; border: 1.5px solid var(--border); border-radius: 4px;
+      flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.15s;
+    }
+    .item.on .check { background: var(--success); border-color: var(--success); }
+    .check svg { width: 9px; height: 9px; opacity: 0; transform: scale(0.3); transition: all 0.15s; }
+    .item.on .check svg { opacity: 1; transform: scale(1); }
+    .label { font-size: 0.8rem; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .note { font-size: 0.62rem; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .tips {
+      background: linear-gradient(135deg, #12261a, #0e1f16);
+      border: 1px solid rgba(61,214,140,0.18); border-radius: var(--radius);
+      padding: 8px 10px; margin-bottom: 12px;
+    }
+    .tips h3 { font-size: 0.78rem; margin-bottom: 5px; display: flex; align-items: center; gap: 4px; }
+    .tips ul {
+      list-style: none; font-size: 0.72rem; color: var(--muted);
+      display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px;
+    }
+    @media (min-width: 640px) { .tips ul { grid-template-columns: 1fr 1fr 1fr; } }
+    .tips li { padding-left: 14px; position: relative; }
+    .tips li::before {
+      content: "✓"; position: absolute; left: 0; color: var(--success);
+      font-weight: 700; font-size: 0.68rem;
+    }
+
+    .bottom {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: rgba(11,18,32,0.94); backdrop-filter: blur(12px);
+      border-top: 1px solid var(--border);
+      padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); z-index: 50;
+    }
+    .bottom-inner { max-width: 1000px; margin: 0 auto; display: flex; gap: 8px; }
+    .btn {
+      flex: 1; padding: 10px 4px; border: none; border-radius: var(--radius-sm);
+      font-size: 0.8rem; font-weight: 600; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; white-space: nowrap;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-ghost { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+    .btn-main { background: var(--accent); color: #fff; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 100;
+      display: none; align-items: flex-end; justify-content: center;
+    }
+    .overlay.show { display: flex; }
+    @media (min-width: 520px) { .overlay { align-items: center; } }
+    .modal {
+      background: var(--surface); border-radius: 14px 14px 0 0;
+      width: 100%; max-width: 400px;
+      padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+      animation: up 0.22s ease; max-height: 90vh; overflow-y: auto;
+    }
+    @media (min-width: 520px) { .modal { border-radius: 14px; padding-bottom: 16px; } }
+    @keyframes up {
+      from { transform: translateY(30px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .modal h2 {
+      font-size: 1rem; margin-bottom: 12px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .modal .close {
+      background: none; border: none; color: var(--muted);
+      font-size: 1.3rem; cursor: pointer; line-height: 1;
+    }
+    .form { display: flex; flex-direction: column; gap: 8px; }
+    .form label { font-size: 0.75rem; color: var(--muted); }
+    .form select, .form input {
+      background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 9px 10px; color: var(--text); font-size: 0.9rem; outline: none; width: 100%;
+    }
+    .form select:focus, .form input:focus { border-color: var(--accent); }
+    .form .hint { font-size: 0.7rem; color: var(--muted); line-height: 1.4; }
+    .form .hint a { color: var(--accent); }
+    .form-actions { display: flex; gap: 8px; margin-top: 4px; }
+    .form-actions .btn { flex: 1; }
+
+    .toast {
+      position: fixed; top: 52px; left: 50%;
+      transform: translateX(-50%) translateY(-10px);
+      background: var(--surface2); color: var(--text);
+      padding: 8px 14px; border-radius: var(--radius-sm); font-size: 0.8rem;
+      z-index: 200; opacity: 0; transition: all 0.2s; pointer-events: none;
+      border: 1px solid var(--border); white-space: nowrap; max-width: 90vw;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* Auth (login / register) */
+    .auth-screen {
+      position: fixed; inset: 0; z-index: 300;
+      background: var(--bg);
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px 16px;
+    }
+    .auth-screen.hidden { display: none; }
+    .auth-card {
+      width: 100%; max-width: 360px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 24px 20px 20px;
+    }
+    .auth-card h1 {
+      font-size: 1.25rem; text-align: center; margin-bottom: 4px;
+    }
+    .auth-card .sub {
+      font-size: 0.75rem; color: var(--muted); text-align: center; margin-bottom: 18px;
+    }
+    .auth-tabs {
+      display: flex; gap: 0; margin-bottom: 16px;
+      background: var(--bg); border-radius: var(--radius-sm); padding: 3px;
+    }
+    .auth-tabs button {
+      flex: 1; border: none; background: transparent; color: var(--muted);
+      padding: 8px; font-size: 0.85rem; font-weight: 600; border-radius: 6px; cursor: pointer;
+    }
+    .auth-tabs button.on {
+      background: var(--surface2); color: var(--text);
+    }
+    .auth-form { display: flex; flex-direction: column; gap: 10px; }
+    .auth-form label { font-size: 0.75rem; color: var(--muted); }
+    .auth-form input {
+      background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 11px 12px; color: var(--text); font-size: 0.95rem; outline: none; width: 100%;
+    }
+    .auth-form input:focus { border-color: var(--accent); }
+    .auth-form .err {
+      font-size: 0.75rem; color: #f87171; min-height: 1.2em; text-align: center;
+    }
+    .auth-form .btn-auth {
+      margin-top: 4px; padding: 12px; border: none; border-radius: var(--radius-sm);
+      background: var(--accent); color: #fff; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+    }
+    .auth-form .btn-auth:disabled { opacity: 0.5; }
+    .auth-hint {
+      font-size: 0.68rem; color: var(--muted); text-align: center; margin-top: 14px; line-height: 1.45;
+    }
+    .user-chip {
+      font-size: 0.72rem; color: var(--muted); max-width: 90px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      cursor: pointer;
+    }
+    .user-chip strong { color: var(--accent); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <!-- Login / Register -->
+  <div class="auth-screen" id="authScreen">
+    <div class="auth-card">
+      <h1>🧳 出行清单</h1>
+      <p class="sub">个人昵称登录 · 数据按账号独立同步</p>
+      <div class="auth-tabs">
+        <button type="button" class="on" id="tabLogin" onclick="switchAuthTab('login')">登录</button>
+        <button type="button" id="tabReg" onclick="switchAuthTab('reg')">注册</button>
+      </div>
+      <div class="auth-form" id="authForm">
+        <label>昵称</label>
+        <input type="text" id="authNick" placeholder="2～16 个字符" maxlength="16" autocomplete="username">
+        <label>密码</label>
+        <input type="password" id="authPwd" placeholder="至少 4 位" maxlength="32" autocomplete="current-password">
+        <div id="authPwd2Wrap" style="display:none">
+          <label>确认密码</label>
+          <input type="password" id="authPwd2" placeholder="再次输入密码" maxlength="32" autocomplete="new-password">
+        </div>
+        <label id="rememberWrap" style="display:flex;align-items:center;gap:8px;font-size:0.8rem;color:var(--muted);cursor:pointer">
+          <input type="checkbox" id="authRemember" style="width:auto"> 记住昵称和密码（仅本机）
+        </label>
+        <div class="err" id="authErr"></div>
+        <button type="button" class="btn-auth" id="authBtn" onclick="submitAuth()">登录</button>
+      </div>
+      <p class="auth-hint">同一昵称+密码可在电脑与手机登录（配置相同同步地址即可）。<br>清单按昵称分文件存储；优先阿里云，Worker 备用。</p>
+      <p class="auth-hint" style="margin-top:8px">
+        <a href="javascript:void(0)" onclick="showSettings()" style="color:var(--accent)">配置同步服务（阿里云 / Worker）</a>
+      </p>
+    </div>
+  </div>
+
+  <div class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">🧳 出行清单</div>
+      <div class="user-chip" id="userChip" title="点击退出登录" onclick="logout()"></div>
+      <div class="sync-dot" id="syncDot" title="云端未配置"></div>
+      <div class="progress-area">
+        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="progress-label" id="progressLabel">0 / 0 · 0%</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page">
+    <div class="weather">
+      <div class="weather-row">
+        <input type="text" id="cityInput" placeholder="城市，如 北京 / 东京" autocomplete="off">
+        <button class="btn-query" id="weatherBtn" onclick="fetchWeather()">查询</button>
+      </div>
+      <div class="quick-cities" id="quickCities"></div>
+      <div class="w-status" id="wStatus">输入目的地查看天气</div>
+      <div class="w-body" id="wBody">
+        <div class="w-loc" id="wLoc"></div>
+        <div class="w-strip">
+          <div class="w-current">
+            <div class="w-icon" id="wIcon">🌤️</div>
+            <div class="w-info">
+              <div class="w-temp" id="wTemp">--<small>°C</small></div>
+              <div class="w-desc" id="wDesc">--</div>
+              <div class="w-meta" id="wMeta"></div>
+            </div>
+          </div>
+          <div class="w-days" id="wDays"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sections" id="sections"></div>
+
+    <div class="tips">
+      <h3>🚪 出门前必做</h3>
+      <ul>
+        <li>检查门窗水电</li>
+        <li>倒垃圾清易腐物</li>
+        <li>确认票站时间</li>
+        <li>关空调热水器</li>
+        <li>带好钥匙锁门</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <div class="bottom-inner">
+      <button class="btn btn-ghost" onclick="showSettings()">云端</button>
+      <button class="btn btn-ghost" onclick="resetAll()">重置</button>
+      <button class="btn btn-main" onclick="showAdd()">＋</button>
+    </div>
+  </div>
+
+  <!-- Add item / category modal -->
+  <div class="overlay" id="addOverlay">
+    <div class="modal">
+      <h2 id="addModalTitle">添加 <button class="close" onclick="hideAdd()">×</button></h2>
+      <div class="auth-tabs" style="margin-bottom:12px">
+        <button type="button" class="on" id="tabAddItem" onclick="switchAddTab('item')">物品</button>
+        <button type="button" id="tabAddCat" onclick="switchAddTab('cat')">品类</button>
+      </div>
+      <div class="form" id="addItemForm">
+        <label>所属品类</label>
+        <select id="addCat"></select>
+        <label>物品名称</label>
+        <input type="text" id="addName" placeholder="物品名称" maxlength="30">
+        <button class="btn btn-main" onclick="addItem()">添加物品</button>
+      </div>
+      <div class="form" id="addCatForm" style="display:none">
+        <label>品类名称</label>
+        <input type="text" id="catName" placeholder="如 数码配件、零食" maxlength="16">
+        <label>图标（可选 emoji）</label>
+        <input type="text" id="catIcon" placeholder="默认 📦" maxlength="4">
+        <button class="btn btn-main" onclick="addCategory()">添加品类</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cloud settings modal -->
+  <div class="overlay" id="settingsOverlay">
+    <div class="modal">
+      <h2>云端同步设置 <button class="close" onclick="hideSettings()">×</button></h2>
+      <div class="form">
+        <label>主线路（阿里云 FC，国内优先）</label>
+        <input type="text" id="cfgPrimary" placeholder="https://xxx.cn-shenzhen.fcapp.run" autocomplete="off">
+        <label>备用线路（Cloudflare Worker）</label>
+        <input type="text" id="cfgFallback" placeholder="https://xxx.workers.dev" autocomplete="off">
+        <label>接口密钥（可选，两端配置了 SYNC_SECRET 才填）</label>
+        <input type="password" id="cfgSyncSecret" placeholder="无则留空" autocomplete="off">
+        <div class="hint">
+          GitHub Token 只存在云函数环境变量中，浏览器无需填写。<br>
+          请求优先走阿里云，失败时自动切换备用 Worker。<br>
+          电脑与手机填写相同地址，用相同昵称密码即可同步。数据：data/昵称.json
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-ghost" onclick="hideSettings()">取消</button>
+          <button class="btn btn-main" onclick="saveSettings()">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ========== 云同步：阿里云 FC 优先，Cloudflare Worker 备用 ==========
+    const DEFAULT_PRIMARY = "https://chux-sync-angbonzzer.cn-shenzhen.fcapp.run";
+    const DEFAULT_FALLBACK = "https://chux-sync.q1970762480.workers.dev";
+    const WORKER_CFG_KEY = "chuxWorkerCfg";
+    const REMEMBER_KEY = "chuxRememberLogin";
+
+    function normalizeEndpoints(c) {
+      let primary = (c.primary || c.url || DEFAULT_PRIMARY).replace(/\/+$/, "");
+      let fallback = (c.fallback || DEFAULT_FALLBACK).replace(/\/+$/, "");
+      // 纠正：主线路应是阿里云；若主备相同或主线路误写成 workers，则强制分开
+      const isWorkers = (u) => /workers\.dev/i.test(u || "");
+      const isAliyun = (u) => /fcapp\.run|aliyuncs\.com|fc\.code/i.test(u || "");
+      if (!primary) primary = DEFAULT_PRIMARY;
+      if (!fallback) fallback = DEFAULT_FALLBACK;
+      if (primary === fallback) {
+        if (isWorkers(primary)) {
+          primary = DEFAULT_PRIMARY;
+          fallback = primary === DEFAULT_PRIMARY ? (isWorkers(c.fallback) ? c.fallback : DEFAULT_FALLBACK) : primary;
+          // 上面逻辑易乱，直接固定默认双线路
+          primary = DEFAULT_PRIMARY;
+          fallback = DEFAULT_FALLBACK;
+        } else if (isAliyun(primary)) {
+          fallback = DEFAULT_FALLBACK;
+        } else {
+          primary = DEFAULT_PRIMARY;
+          fallback = DEFAULT_FALLBACK;
+        }
+      } else if (isWorkers(primary) && isAliyun(fallback)) {
+        // 主备写反了，交换
+        const t = primary; primary = fallback; fallback = t;
+      } else if (isWorkers(primary) && !isAliyun(primary)) {
+        primary = DEFAULT_PRIMARY;
+        if (!fallback || fallback === primary) fallback = DEFAULT_FALLBACK;
+      }
+      return { primary, fallback, secret: c.secret || "" };
+    }
+
+    function getWorkerCfg() {
+      try {
+        const c = JSON.parse(localStorage.getItem(WORKER_CFG_KEY) || "{}");
+        return normalizeEndpoints(c);
+      } catch {
+        return { primary: DEFAULT_PRIMARY, fallback: DEFAULT_FALLBACK, secret: "" };
+      }
+    }
+    function setWorkerCfg(c) {
+      const n = normalizeEndpoints(c);
+      localStorage.setItem(WORKER_CFG_KEY, JSON.stringify({
+        primary: n.primary,
+        fallback: n.fallback,
+        secret: n.secret,
+        url: n.primary
+      }));
+      updateSyncDot();
+    }
+    function endpointList() {
+      const c = getWorkerCfg();
+      const list = [];
+      if (c.primary) list.push(c.primary);
+      if (c.fallback && c.fallback !== c.primary) list.push(c.fallback);
+      return list;
+    }
+
+    function loadRememberedLogin() {
+      try {
+        const r = JSON.parse(localStorage.getItem(REMEMBER_KEY) || "null");
+        if (!r || !r.nick) return;
+        document.getElementById("authNick").value = r.nick || "";
+        document.getElementById("authPwd").value = r.pwd || "";
+        document.getElementById("authRemember").checked = true;
+      } catch {}
+    }
+    function saveRememberedLogin(nick, pwd, on) {
+      if (on) {
+        localStorage.setItem(REMEMBER_KEY, JSON.stringify({ nick, pwd }));
+      } else {
+        localStorage.removeItem(REMEMBER_KEY);
+      }
+    }
+    function workerHeaders() {
+      const h = { "Content-Type": "application/json" };
+      const s = getWorkerCfg().secret;
+      if (s) h["X-Sync-Secret"] = s;
+      return h;
+    }
+    /** 优先阿里云，失败自动试备用 */
+    async function workerPost(body) {
+      const endpoints = endpointList();
+      if (!endpoints.length) throw new Error("未配置同步地址");
+      let lastErr = null;
+      for (const base of endpoints) {
+        try {
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), 12000);
+          const res = await fetch(base + "/", {
+            method: "POST",
+            headers: workerHeaders(),
+            body: JSON.stringify(body),
+            signal: ctrl.signal
+          });
+          clearTimeout(timer);
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || data.ok === false) {
+            throw new Error(data.error || ("请求失败 " + res.status));
+          }
+          return data;
+        } catch (e) {
+          lastErr = e;
+          console.warn("sync endpoint fail:", base, e);
+        }
+      }
+      throw lastErr || new Error("同步失败");
+    }
+
+    // ========== Auth（昵称+密码，本地 + Worker 云端账号表） ==========
+    const USERS_KEY = "chuxUsers";
+    const SESSION_KEY = "chuxSession";
+
+    let currentNick = null;
+    let authMode = "login";
+
+    function getUsers() {
+      try { return JSON.parse(localStorage.getItem(USERS_KEY) || "{}"); } catch { return {}; }
+    }
+    function saveUsers(u) { localStorage.setItem(USERS_KEY, JSON.stringify(u)); }
+
+    function getSession() {
+      try { return JSON.parse(localStorage.getItem(SESSION_KEY) || "null"); } catch { return null; }
+    }
+    function setSession(nick) {
+      if (nick) localStorage.setItem(SESSION_KEY, JSON.stringify({ nick, at: Date.now() }));
+      else localStorage.removeItem(SESSION_KEY);
+    }
+
+    async function hashPwd(password, salt) {
+      const data = new TextEncoder().encode(password + salt);
+      const buf = await crypto.subtle.digest("SHA-256", data);
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+    }
+    function randomSalt() {
+      const a = new Uint8Array(16);
+      crypto.getRandomValues(a);
+      return Array.from(a).map(b => b.toString(16).padStart(2, "0")).join("");
+    }
+    function sanitizeNick(n) {
+      return (n || "").trim().replace(/[\\/:*?"<>|]/g, "").slice(0, 16);
+    }
+    function dataKeyFor(nick) { return "travelChecklist_" + nick; }
+
+    async function fetchCloudAccounts() {
+      try {
+        const data = await workerPost({ action: "accounts_pull" });
+        return data.accounts || {};
+      } catch (e) {
+        console.warn("fetchCloudAccounts", e);
+        return {};
+      }
+    }
+
+    async function pushCloudAccounts(usersObj) {
+      try {
+        const remote = await fetchCloudAccounts();
+        const merged = { ...remote, ...usersObj };
+        await workerPost({ action: "accounts_push", accounts: merged });
+        saveUsers(merged);
+        return true;
+      } catch (e) {
+        console.warn("pushCloudAccounts", e);
+        return false;
+      }
+    }
+
+    function switchAuthTab(mode) {
+      authMode = mode;
+      document.getElementById("tabLogin").classList.toggle("on", mode === "login");
+      document.getElementById("tabReg").classList.toggle("on", mode === "reg");
+      document.getElementById("authPwd2Wrap").style.display = mode === "reg" ? "block" : "none";
+      document.getElementById("authBtn").textContent = mode === "reg" ? "注册并登录" : "登录";
+      document.getElementById("authErr").textContent = "";
+      document.getElementById("authPwd2").value = "";
+      const rem = document.getElementById("rememberWrap");
+      if (rem) rem.style.display = mode === "login" ? "flex" : "none";
+      // 切换到登录时恢复记住的账号；注册时清空确认框即可
+      if (mode === "login") loadRememberedLogin();
+      else document.getElementById("authPwd").value = "";
+    }
+
+    async function submitAuth() {
+      const nick = sanitizeNick(document.getElementById("authNick").value);
+      const pwd = document.getElementById("authPwd").value;
+      const pwd2 = document.getElementById("authPwd2").value;
+      const remember = !!(document.getElementById("authRemember") && document.getElementById("authRemember").checked);
+      const errEl = document.getElementById("authErr");
+      errEl.textContent = "";
+
+      if (!nick || nick.length < 2) { errEl.textContent = "昵称至少 2 个字符"; return; }
+      if (!pwd || pwd.length < 4) { errEl.textContent = "密码至少 4 位"; return; }
+
+      const btn = document.getElementById("authBtn");
+      btn.disabled = true;
+      try {
+        // 先拉云端账号表，与本地合并
+        let users = getUsers();
+        try {
+          const remote = await fetchCloudAccounts();
+          users = { ...remote, ...users };
+          saveUsers(users);
+        } catch (_) {}
+
+        if (authMode === "reg") {
+          if (pwd !== pwd2) { errEl.textContent = "两次密码不一致"; return; }
+          if (users[nick]) { errEl.textContent = "该昵称已注册，请直接登录"; return; }
+          const salt = randomSalt();
+          const hash = await hashPwd(pwd, salt);
+          users[nick] = { salt, hash, createdAt: new Date().toISOString() };
+          saveUsers(users);
+          await pushCloudAccounts(users);
+          saveRememberedLogin(nick, pwd, remember);
+          await enterApp(nick);
+          toast("注册成功，欢迎 " + nick);
+        } else {
+          let u = users[nick];
+          if (!u) {
+            const remote = await fetchCloudAccounts();
+            users = { ...users, ...remote };
+            saveUsers(users);
+            u = users[nick];
+          }
+          if (!u) { errEl.textContent = "昵称不存在，请先注册（或先配置同步地址）"; return; }
+          const hash = await hashPwd(pwd, u.salt);
+          if (hash !== u.hash) { errEl.textContent = "密码错误"; return; }
+          saveRememberedLogin(nick, pwd, remember);
+          await enterApp(nick);
+          toast("欢迎回来，" + nick);
+        }
+      } catch (e) {
+        console.error(e);
+        errEl.textContent = "操作失败，请重试";
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function enterApp(nick) {
+      currentNick = nick;
+      setSession(nick);
+      document.getElementById("authScreen").classList.add("hidden");
+      document.getElementById("userChip").innerHTML = `<strong>${nick}</strong>`;
+      loadLocal();
+      render();
+      renderQuickCities();
+      const lastCity = getLastCity();
+      const cityInput = document.getElementById("cityInput");
+      if (lastCity && cityInput) {
+        cityInput.value = lastCity;
+        fetchWeather(lastCity);
+      }
+      applyCloudPathForNick(nick);
+      updateSyncDot();
+      try {
+        const ok = await pullCloudSilent();
+        if (ok) toast("已同步「" + nick + "」的云端数据");
+      } catch (e) { console.warn(e); }
+    }
+
+    function logout() {
+      if (!currentNick) return;
+      if (!confirm("退出当前账号「" + currentNick + "」？")) return;
+      currentNick = null;
+      setSession(null);
+      data = JSON.parse(JSON.stringify(defaultData));
+      document.getElementById("userChip").textContent = "";
+      document.getElementById("authScreen").classList.remove("hidden");
+      document.getElementById("authNick").value = "";
+      document.getElementById("authPwd").value = "";
+      document.getElementById("authPwd2").value = "";
+      document.getElementById("authErr").textContent = "";
+      switchAuthTab("login");
+      toast("已退出登录");
+    }
+
+    function applyCloudPathForNick(nick) {
+      // Worker 模式下路径由服务端按昵称决定，此处仅更新同步状态点
+      updateSyncDot();
+    }
+
+    function updateSyncDot() {
+      const el = document.getElementById("syncDot");
+      const list = endpointList();
+      if (list.length) {
+        el.classList.add("on");
+        el.title = currentNick
+          ? ("云端已开启（阿里云优先）· " + currentNick)
+          : "云端已开启（阿里云优先 · Worker 备用）";
+      } else {
+        el.classList.remove("on");
+        el.title = "未配置云端";
+      }
+    }
+
+    // ========== Weather ==========
+    const weatherMap = {
+      0:{icon:"☀️",text:"晴朗"},1:{icon:"🌤️",text:"大部晴朗"},2:{icon:"⛅",text:"多云"},3:{icon:"☁️",text:"阴天"},
+      45:{icon:"🌫️",text:"有雾"},48:{icon:"🌫️",text:"雾凇"},
+      51:{icon:"🌧️",text:"小毛毛雨"},53:{icon:"🌧️",text:"毛毛雨"},55:{icon:"🌧️",text:"大毛毛雨"},
+      61:{icon:"🌧️",text:"小雨"},63:{icon:"🌧️",text:"中雨"},65:{icon:"🌧️",text:"大雨"},
+      71:{icon:"🌨️",text:"小雪"},73:{icon:"🌨️",text:"中雪"},75:{icon:"🌨️",text:"大雪"},
+      80:{icon:"🌦️",text:"小阵雨"},81:{icon:"🌦️",text:"阵雨"},82:{icon:"🌦️",text:"强阵雨"},
+      95:{icon:"⛈️",text:"雷暴"},96:{icon:"⛈️",text:"雷暴伴冰雹"},99:{icon:"⛈️",text:"强雷暴伴冰雹"}
+    };
+    const getW = c => weatherMap[c] || {icon:"🌡️",text:"未知"};
+
+    async function fetchWeather(name) {
+      const input = document.getElementById("cityInput");
+      const city = (name || input.value).trim();
+      if (!city) return toast("请输入城市");
+      input.value = city;
+      const btn = document.getElementById("weatherBtn");
+      const st = document.getElementById("wStatus");
+      const body = document.getElementById("wBody");
+      btn.disabled = true;
+      st.className = "w-status";
+      st.textContent = "获取中…";
+      st.style.display = "block";
+      body.classList.remove("show");
+      document.querySelectorAll(".quick-cities button").forEach(b => {
+        b.classList.toggle("on", b.dataset.city === city);
+      });
+      try {
+        const geo = await (await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=zh&format=json`)).json();
+        if (!geo.results?.length) throw new Error(`未找到「${city}」`);
+        const p = geo.results[0];
+        const loc = [p.name, p.admin1, p.country].filter(Boolean).join(" · ");
+        const w = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${p.latitude}&longitude=${p.longitude}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,apparent_temperature&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=3`)).json();
+        const cur = w.current;
+        const info = getW(cur.weather_code);
+        document.getElementById("wLoc").textContent = loc;
+        document.getElementById("wIcon").textContent = info.icon;
+        document.getElementById("wTemp").innerHTML = `${Math.round(cur.temperature_2m)}<small>°C</small>`;
+        document.getElementById("wDesc").textContent = info.text;
+        document.getElementById("wMeta").textContent =
+          `体感${Math.round(cur.apparent_temperature)}°  湿度${cur.relative_humidity_2m}%  风速${Math.round(cur.wind_speed_10m)}km/h`;
+        const days = ["今天","明天","后天"];
+        let html = "";
+        for (let i = 0; i < 3; i++) {
+          const d = getW(w.daily.weather_code[i]);
+          html += `<div class="w-day"><div class="d-name">${days[i]}</div><div class="d-icon">${d.icon}</div><div class="d-temp">${Math.round(w.daily.temperature_2m_max[i])}°<span>/${Math.round(w.daily.temperature_2m_min[i])}°</span></div></div>`;
+        }
+        document.getElementById("wDays").innerHTML = html;
+        body.classList.add("show");
+        st.style.display = "none";
+        if (currentNick) localStorage.setItem("lastCity_" + currentNick, city);
+        else localStorage.setItem("lastCity", city);
+        renderQuickCities();
+      } catch (e) {
+        st.className = "w-status err";
+        st.textContent = e.message || "获取失败";
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // ========== 常用城市 ==========
+    const DEFAULT_CITIES = ["北京", "上海", "广州", "成都", "杭州", "深圳"];
+    function citiesKey() {
+      return currentNick ? "favCities_" + currentNick : "favCities";
+    }
+    function getFavCities() {
+      try {
+        const arr = JSON.parse(localStorage.getItem(citiesKey()) || "null");
+        if (Array.isArray(arr) && arr.length) return arr.slice(0, 12);
+      } catch {}
+      return DEFAULT_CITIES.slice();
+    }
+    function saveFavCities(arr) {
+      localStorage.setItem(citiesKey(), JSON.stringify(arr.slice(0, 12)));
+    }
+    function getLastCity() {
+      if (currentNick) return localStorage.getItem("lastCity_" + currentNick) || "";
+      return localStorage.getItem("lastCity") || "";
+    }
+    function renderQuickCities() {
+      const box = document.getElementById("quickCities");
+      if (!box) return;
+      const cities = getFavCities();
+      const last = getLastCity();
+      box.innerHTML =
+        cities.map(c =>
+          `<button type="button" data-city="${c}" class="${c === last ? "on" : ""}">${c}</button>`
+        ).join("") +
+        `<button type="button" class="add-city" id="btnAddCity" title="将输入框中的城市加入常用">＋城市</button>`;
+    }
+    function addFavCityFromInput() {
+      const city = document.getElementById("cityInput").value.trim();
+      if (!city) return toast("请先输入或查询城市");
+      const list = getFavCities();
+      if (list.includes(city)) return toast("已在常用城市中");
+      list.push(city);
+      saveFavCities(list);
+      renderQuickCities();
+      toast("已添加常用：" + city);
+    }
+    function removeFavCity(city) {
+      const list = getFavCities().filter(c => c !== city);
+      saveFavCities(list.length ? list : DEFAULT_CITIES.slice());
+      renderQuickCities();
+      toast("已移除：" + city);
+    }
+
+    // ========== Checklist data ==========
+    const defaultData = {
+      docs: { name: "证件类", icon: "🪪", items: [
+        {id:"idcard",name:"身份证",checked:false},{id:"pass",name:"通行证",checked:false},
+        {id:"passport",name:"护照",checked:false},{id:"driver",name:"驾驶证",checked:false}
+      ]},
+      toiletries: { name: "洗漱类", icon: "🧴", items: [
+        {id:"toiletries",name:"洗漱用品",checked:false},{id:"sunscreen",name:"防晒",checked:false},
+        {id:"hairgel",name:"发胶",checked:false},{id:"facewash",name:"洗面奶",checked:false}
+      ]},
+      electronics: { name: "电器类", icon: "🔌", items: [
+        {id:"charger",name:"充电器",checked:false},{id:"powerbank",name:"充电宝",checked:false},
+        {id:"earphone",name:"耳机",checked:false},{id:"razor",name:"剃须刀",checked:false},
+        {id:"watch",name:"手表",checked:false},{id:"camera",name:"相机",checked:false}
+      ]},
+      medicine: { name: "药物类", icon: "💊", items: [
+        {id:"cold",name:"感冒药",checked:false},{id:"stomach",name:"肠胃药",checked:false},
+        {id:"detox",name:"清热解毒",checked:false},{id:"altitude",name:"高反药",checked:false}
+      ]},
+      others: { name: "其他", icon: "🎒", items: [
+        {id:"mask",name:"口罩",checked:false},{id:"umbrella",name:"雨伞",checked:false},
+        {id:"sunglasses",name:"墨镜",checked:false},{id:"eyemask",name:"眼罩",checked:false},
+        {id:"pillow",name:"靠枕",checked:false},{id:"tissue",name:"纸巾",checked:false},
+        {id:"keys",name:"钥匙",checked:false}
+      ]},
+      clothing: { name: "衣物类", icon: "👕", items: [
+        {id:"weathercheck",name:"根据天气准备衣物",checked:false,note:"先看天气"},
+        {id:"clothes",name:"换洗衣物",checked:false},{id:"underwear",name:"内衣内裤",checked:false},
+        {id:"shoes",name:"舒适鞋子",checked:false}
+      ]}
+    };
+
+    let data = JSON.parse(JSON.stringify(defaultData));
+
+    function loadLocal() {
+      if (!currentNick) {
+        data = JSON.parse(JSON.stringify(defaultData));
+        return;
+      }
+      try {
+        const s = localStorage.getItem(dataKeyFor(currentNick));
+        if (s) {
+          const p = JSON.parse(s);
+          data = {};
+          // 默认品类：有存档用存档，否则用默认
+          for (const k in defaultData) {
+            data[k] = p[k] && Array.isArray(p[k].items)
+              ? p[k]
+              : JSON.parse(JSON.stringify(defaultData[k]));
+          }
+          // 自定义品类
+          for (const k in p) {
+            if (!data[k] && p[k] && p[k].name && Array.isArray(p[k].items)) {
+              data[k] = p[k];
+            }
+          }
+        } else {
+          data = JSON.parse(JSON.stringify(defaultData));
+        }
+      } catch {
+        data = JSON.parse(JSON.stringify(defaultData));
+      }
+    }
+    function saveLocal() {
+      if (!currentNick) return;
+      localStorage.setItem(dataKeyFor(currentNick), JSON.stringify(data));
+    }
+
+    function refreshCatSelect() {
+      const sel = document.getElementById("addCat");
+      if (!sel) return;
+      const prev = sel.value;
+      sel.innerHTML = Object.keys(data).map(k =>
+        `<option value="${k}">${data[k].icon || ""} ${data[k].name}</option>`
+      ).join("");
+      if (prev && data[prev]) sel.value = prev;
+    }
+
+    function updateProgress() {
+      let t = 0, c = 0;
+      for (const k in data) data[k].items.forEach(i => { t++; if (i.checked) c++; });
+      const pct = t ? Math.round(c / t * 100) : 0;
+      document.getElementById("progressFill").style.width = pct + "%";
+      document.getElementById("progressLabel").textContent = `${c} / ${t} · ${pct}%`;
+    }
+
+    function render() {
+      const box = document.getElementById("sections");
+      box.innerHTML = "";
+      for (const key in data) {
+        const cat = data[key];
+        const done = cat.items.filter(i => i.checked).length;
+        const isCustom = !defaultData[key];
+        const sec = document.createElement("div");
+        sec.className = "section";
+        sec.innerHTML = `
+          <div class="section-hd">
+            <h2>${cat.icon || "📦"} ${cat.name}</h2>
+            <span class="cnt">
+              ${done}/${cat.items.length}
+              ${isCustom ? `<button type="button" class="city-x" title="删除品类" onclick="event.stopPropagation();removeCategory('${key}')">✕</button>` : ""}
+            </span>
+          </div>
+          <div class="items">
+            ${cat.items.map(it => `
+              <div class="item ${it.checked ? "on" : ""}" onclick="toggle('${key}','${it.id}')">
+                <div class="check">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <div style="min-width:0">
+                  <div class="label">${it.name}</div>
+                  ${it.note ? `<div class="note">${it.note}</div>` : ""}
+                </div>
+              </div>
+            `).join("")}
+          </div>`;
+        box.appendChild(sec);
+      }
+      updateProgress();
+      refreshCatSelect();
+    }
+
+    function toggle(cat, id) {
+      const it = data[cat].items.find(i => i.id === id);
+      if (it) {
+        it.checked = !it.checked;
+        saveLocal();
+        render();
+        scheduleCloudPush(); // 勾选变化自动同步到云端
+      }
+    }
+
+    function resetAll() {
+      if (!confirm("确定重置全部勾选？")) return;
+      for (const k in data) data[k].items.forEach(i => i.checked = false);
+      saveLocal();
+      render();
+      toast("已重置");
+      scheduleCloudPush();
+    }
+
+    let addTab = "item";
+    function switchAddTab(mode) {
+      addTab = mode;
+      document.getElementById("tabAddItem").classList.toggle("on", mode === "item");
+      document.getElementById("tabAddCat").classList.toggle("on", mode === "cat");
+      document.getElementById("addItemForm").style.display = mode === "item" ? "flex" : "none";
+      document.getElementById("addCatForm").style.display = mode === "cat" ? "flex" : "none";
+      document.getElementById("addModalTitle").childNodes[0].textContent = mode === "item" ? "添加物品 " : "添加品类 ";
+    }
+
+    function showAdd() {
+      refreshCatSelect();
+      switchAddTab("item");
+      document.getElementById("addOverlay").classList.add("show");
+      document.getElementById("addName").value = "";
+      document.getElementById("catName").value = "";
+      document.getElementById("catIcon").value = "";
+      setTimeout(() => document.getElementById("addName").focus(), 50);
+    }
+    function hideAdd() { document.getElementById("addOverlay").classList.remove("show"); }
+
+    function addItem() {
+      const cat = document.getElementById("addCat").value;
+      const name = document.getElementById("addName").value.trim();
+      if (!name) return toast("请输入名称");
+      if (!data[cat]) return toast("请选择品类");
+      data[cat].items.push({ id: "c" + Date.now(), name, checked: false });
+      saveLocal();
+      render();
+      hideAdd();
+      toast("已添加：" + name);
+      scheduleCloudPush();
+    }
+
+    function addCategory() {
+      const name = document.getElementById("catName").value.trim();
+      let icon = document.getElementById("catIcon").value.trim() || "📦";
+      if (!name) return toast("请输入品类名称");
+      if (name.length < 1) return toast("名称太短");
+      // 生成唯一 key
+      let key = "custom_" + Date.now().toString(36);
+      // 避免重名
+      for (const k in data) {
+        if (data[k].name === name) return toast("品类已存在");
+      }
+      data[key] = { name, icon, items: [] };
+      saveLocal();
+      render();
+      hideAdd();
+      toast("已添加品类：" + name);
+      scheduleCloudPush();
+    }
+
+    function removeCategory(key) {
+      if (!data[key] || defaultData[key]) return;
+      if (!confirm("删除品类「" + data[key].name + "」及其全部物品？")) return;
+      delete data[key];
+      saveLocal();
+      render();
+      toast("已删除品类");
+      scheduleCloudPush();
+    }
+
+    function toast(msg) {
+      const t = document.getElementById("toast");
+      t.textContent = msg;
+      t.classList.add("show");
+      setTimeout(() => t.classList.remove("show"), 2200);
+    }
+
+    // ========== Cloud sync via Cloudflare Worker ==========
+    let _pushTimer = null;
+    function scheduleCloudPush() {
+      clearTimeout(_pushTimer);
+      _pushTimer = setTimeout(() => { pushCloudSilent(); }, 800);
+    }
+
+    function showSettings() {
+      // 打开时纠正并写回主备地址，避免界面显示两条一样
+      const c = getWorkerCfg();
+      setWorkerCfg(c);
+      const fixed = getWorkerCfg();
+      document.getElementById("cfgPrimary").value = fixed.primary || DEFAULT_PRIMARY;
+      document.getElementById("cfgFallback").value = fixed.fallback || DEFAULT_FALLBACK;
+      document.getElementById("cfgSyncSecret").value = fixed.secret || "";
+      document.getElementById("settingsOverlay").classList.add("show");
+    }
+    function hideSettings() { document.getElementById("settingsOverlay").classList.remove("show"); }
+
+    async function saveSettings() {
+      let primary = document.getElementById("cfgPrimary").value.trim().replace(/\/+$/, "");
+      let fallback = document.getElementById("cfgFallback").value.trim().replace(/\/+$/, "");
+      const secret = document.getElementById("cfgSyncSecret").value.trim();
+      if (!primary && !fallback) {
+        toast("请至少填写一条同步地址");
+        return;
+      }
+      if (primary && !/^https?:\/\//i.test(primary)) primary = "https://" + primary;
+      if (fallback && !/^https?:\/\//i.test(fallback)) fallback = "https://" + fallback;
+      setWorkerCfg({
+        primary: primary || DEFAULT_PRIMARY,
+        fallback: fallback || DEFAULT_FALLBACK,
+        secret,
+        url: primary || fallback // 兼容旧字段
+      });
+      hideSettings();
+      toast("已保存：阿里云优先，Worker 备用");
+
+      try {
+        const users = getUsers();
+        if (Object.keys(users).length) await pushCloudAccounts(users);
+      } catch (_) {}
+      if (currentNick) {
+        try { await pullCloudSilent(); } catch (_) {}
+        await pushCloudSilent(true);
+      }
+    }
+
+    async function pullCloudSilent() {
+      if (!currentNick) return false;
+      try {
+        const dataRes = await workerPost({ action: "pull", nick: currentNick });
+        if (!dataRes.exists || !dataRes.data) return false;
+        const json = dataRes.data;
+        const src = json.checklist || json;
+        // 默认 + 自定义品类一并恢复
+        for (const k in src) {
+          if (src[k] && src[k].name && Array.isArray(src[k].items)) data[k] = src[k];
+        }
+        if (json.lastCity && currentNick) {
+          localStorage.setItem("lastCity_" + currentNick, json.lastCity);
+          const input = document.getElementById("cityInput");
+          if (input) input.value = json.lastCity;
+        }
+        if (Array.isArray(json.favCities) && json.favCities.length) {
+          saveFavCities(json.favCities);
+        }
+        saveLocal();
+        render();
+        renderQuickCities();
+        return true;
+      } catch (e) {
+        console.warn("pullCloudSilent", e);
+        return false;
+      }
+    }
+
+    async function pushCloudSilent(showToast) {
+      if (!currentNick) return;
+      try {
+        await workerPost({
+          action: "push",
+          nick: currentNick,
+          checklist: data,
+          lastCity: getLastCity() || "",
+          payload: {
+            version: 1,
+            updatedAt: new Date().toISOString(),
+            checklist: data,
+            lastCity: getLastCity() || "",
+            favCities: getFavCities(),
+            nick: currentNick
+          }
+        });
+        if (showToast) toast("已同步到云端");
+        updateSyncDot();
+      } catch (e) {
+        console.error(e);
+        if (showToast) toast(e.message || "同步失败");
+      }
+    }
+
+    // ========== Init ==========
+    (function ensureWorkerCfg() {
+      // 每次启动纠正主备（阿里云优先、Worker 备用），避免旧缓存写成两条相同地址
+      const c = getWorkerCfg();
+      setWorkerCfg(c);
+    })();
+
+    (async function bootstrap() {
+      const sess = getSession();
+      if (sess && sess.nick && getUsers()[sess.nick]) {
+        await enterApp(sess.nick);
+      } else {
+        document.getElementById("authScreen").classList.remove("hidden");
+        switchAuthTab(Object.keys(getUsers()).length ? "login" : "reg");
+        loadRememberedLogin();
+      }
+    })();
+
+    document.getElementById("quickCities").addEventListener("click", e => {
+      if (e.target.id === "btnAddCity" || e.target.classList.contains("add-city")) {
+        addFavCityFromInput();
+        return;
+      }
+      if (e.target.dataset.city) fetchWeather(e.target.dataset.city);
+    });
+    // 长按常用城市可移除（约 600ms）
+    (function bindCityLongPress() {
+      let t = null, city = null;
+      const box = document.getElementById("quickCities");
+      box.addEventListener("pointerdown", e => {
+        if (!e.target.dataset.city) return;
+        city = e.target.dataset.city;
+        t = setTimeout(() => {
+          if (city && confirm("从常用城市移除「" + city + "」？")) removeFavCity(city);
+          city = null;
+        }, 600);
+      });
+      ["pointerup", "pointerleave", "pointercancel"].forEach(ev => {
+        box.addEventListener(ev, () => { clearTimeout(t); city = null; });
+      });
+    })();
+    document.getElementById("cityInput").addEventListener("keydown", e => {
+      if (e.key === "Enter") fetchWeather();
+    });
+    document.getElementById("addOverlay").addEventListener("click", e => {
+      if (e.target.id === "addOverlay") hideAdd();
+    });
+    document.getElementById("settingsOverlay").addEventListener("click", e => {
+      if (e.target.id === "settingsOverlay") hideSettings();
+    });
+    document.getElementById("addName").addEventListener("keydown", e => {
+      if (e.key === "Enter") addItem();
+    });
+    // 登录框回车提交
+    ["authNick", "authPwd", "authPwd2"].forEach(id => {
+      document.getElementById(id).addEventListener("keydown", e => {
+        if (e.key === "Enter") submitAuth();
+      });
+    });
+  </script>
+</body>
+</html>
+
+
+
